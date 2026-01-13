@@ -49,7 +49,62 @@ def request_with_error_handling(url):
     # - Redirecciones (códigos 3xx)
     # - Errores del cliente (códigos 4xx)
     # - Errores del servidor (códigos 5xx)
-    pass
+    
+    try:
+        # Realizar la petición GET (sin seguir redirecciones automáticamente)
+        response = requests.get(url, allow_redirects=False)
+        
+        # Inicializar el resultado
+        result = {
+            'status_code': response.status_code,
+            'is_redirect': False
+        }
+        
+        # Intentar obtener la descripción del JSON si está disponible
+        message = None
+        try:
+            json_data = response.json()
+            if 'description' in json_data:
+                message = json_data['description']
+        except:
+            pass
+        
+        # Determinar el tipo de respuesta según el código de estado
+        if 200 <= response.status_code < 300:
+            # Respuesta exitosa (2xx)
+            result['success'] = True
+            result['message'] = message or 'Success'
+        elif 300 <= response.status_code < 400:
+            # Redirección (3xx)
+            result['success'] = False
+            result['is_redirect'] = True
+            result['redirect_url'] = response.headers.get('Location', '')
+            result['message'] = message or f'Redirect to {result["redirect_url"]}'
+        elif 400 <= response.status_code < 500:
+            # Error del cliente (4xx)
+            result['success'] = False
+            result['error_type'] = 'client_error'
+            result['message'] = message or 'Client error'
+        elif 500 <= response.status_code < 600:
+            # Error del servidor (5xx)
+            result['success'] = False
+            result['error_type'] = 'server_error'
+            result['message'] = message or 'Server error'
+        else:
+            # Otros códigos
+            result['success'] = False
+            result['message'] = message or 'Unknown status'
+        
+        return result
+        
+    except requests.exceptions.RequestException as e:
+        # Manejar errores de conexión u otros errores de requests
+        return {
+            'success': False,
+            'status_code': 0,
+            'is_redirect': False,
+            'message': f'connection_error: {str(e)}'
+        }
 
 
 if __name__ == "__main__":

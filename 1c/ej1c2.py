@@ -35,7 +35,24 @@ def get_stations_data():
     # 2. Verificar que la respuesta sea correcta (código 200)
     # 3. Extraer y devolver el objeto 'data' del JSON recibido
     # 4. Manejar posibles errores (conexión, formato, etc.)
-    pass
+    
+    try:
+        # Realizar la petición GET
+        response = requests.get(url)
+        
+        # Verificar que la respuesta sea correcta
+        if response.status_code == 200:
+            # Extraer y devolver el objeto 'data' del JSON
+            json_data = response.json()
+            return json_data.get('data')
+        else:
+            return None
+    except requests.exceptions.RequestException:
+        # Manejar errores de conexión
+        return None
+    except (ValueError, KeyError):
+        # Manejar errores de formato JSON
+        return None
 
 
 def get_station_info(stations_data, station_id):
@@ -55,7 +72,25 @@ def get_station_info(stations_data, station_id):
     # 2. Buscar la estación con el ID proporcionado en la lista de estaciones
     # 3. Devolver la información completa de esa estación
     # 4. Si no existe, devolver None
-    pass
+    
+    # Verificar que stations_data no es None y tiene la estructura esperada
+    if stations_data is None:
+        return None
+    
+    try:
+        # Obtener la lista de estaciones
+        stations = stations_data.get('stations', [])
+        
+        # Buscar la estación con el ID proporcionado
+        for station in stations:
+            if station.get('station_id') == station_id:
+                return station
+        
+        # Si no se encuentra, devolver None
+        return None
+    except (TypeError, AttributeError):
+        # Manejar errores de estructura de datos
+        return None
 
 
 def get_station_coordinates(station_info):
@@ -74,7 +109,24 @@ def get_station_coordinates(station_info):
     # 2. Extraer los valores de latitud y longitud del diccionario
     # 3. Devolver ambos valores como una tupla (lat, lon)
     # 4. Manejar casos donde los campos no existan
-    pass
+    
+    # Verificar que station_info no es None
+    if station_info is None:
+        return None
+    
+    try:
+        # Extraer los valores de latitud y longitud
+        lat = station_info.get('lat')
+        lon = station_info.get('lon')
+        
+        # Verificar que ambos valores existan
+        if lat is not None and lon is not None:
+            return (lat, lon)
+        else:
+            return None
+    except (TypeError, AttributeError):
+        # Manejar errores de estructura de datos
+        return None
 
 
 def create_stations_dataframe(stations_data):
@@ -93,7 +145,36 @@ def create_stations_dataframe(stations_data):
     # 2. Crear una lista de diccionarios con la información básica de cada estación
     # 3. Convertir esa lista en un DataFrame de pandas
     # 4. El DataFrame debe tener las columnas: 'station_id', 'latitude', 'longitude', 'name'
-    pass
+    
+    # Verificar que stations_data no es None y tiene la estructura esperada
+    if stations_data is None:
+        return None
+    
+    try:
+        # Verificar que existe el campo 'stations'
+        if 'stations' not in stations_data:
+            return None
+        
+        # Obtener la lista de estaciones
+        stations = stations_data.get('stations', [])
+        
+        # Crear una lista de diccionarios con la información básica
+        stations_list = []
+        for station in stations:
+            stations_list.append({
+                'station_id': station.get('station_id'),
+                'latitude': station.get('lat'),
+                'longitude': station.get('lon'),
+                'name': station.get('name')
+            })
+        
+        # Convertir la lista en un DataFrame de pandas
+        # Aunque la lista esté vacía, devolvemos un DataFrame
+        df = pd.DataFrame(stations_list)
+        return df
+    except (TypeError, AttributeError):
+        # Manejar errores de estructura de datos
+        return None
 
 
 if __name__ == '__main__':

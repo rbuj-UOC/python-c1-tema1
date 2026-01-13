@@ -34,7 +34,14 @@ def listar_sistemas_disponibles() -> List[str]:
     """
     # Implementa aquí la lógica para obtener y devolver la lista
     # de sistemas disponibles en pybikes
-    pass
+    try:
+        # Obtener todas las instancias de sistemas
+        instances = list(pybikes.get_instances())
+        # Extraer los tags (identificadores) de cada instancia
+        tags = [instance[1]['tag'] for instance in instances]
+        return tags
+    except Exception:
+        return []
 
 
 def buscar_sistema_por_ciudad(ciudad: str) -> List[str]:
@@ -49,7 +56,29 @@ def buscar_sistema_por_ciudad(ciudad: str) -> List[str]:
     """
     # Implementa aquí la lógica para buscar y devolver sistemas
     # que coincidan con la ciudad especificada
-    pass
+    try:
+        resultados = []
+        ciudad_lower = ciudad.lower()
+        
+        # Obtener todas las instancias
+        instances = list(pybikes.get_instances())
+        
+        # Iterar sobre todas las instancias
+        for class_name, instance_info in instances:
+            # Verificar si el nombre de la ciudad está en los metadatos
+            meta = instance_info.get('meta', {})
+            city = meta.get('city', '').lower()
+            name = meta.get('name', '').lower()
+            tag = instance_info.get('tag', '')
+            
+            # Buscar coincidencias en city o name
+            if ciudad_lower in city or ciudad_lower in name:
+                if tag and tag not in resultados:
+                    resultados.append(tag)
+        
+        return resultados
+    except Exception:
+        return []
 
 
 def obtener_info_sistema(tag: str) -> Dict[str, Any]:
@@ -64,7 +93,29 @@ def obtener_info_sistema(tag: str) -> Dict[str, Any]:
     """
     # Implementa aquí la lógica para obtener y devolver
     # los metadatos del sistema especificado
-    pass
+    try:
+        # Obtener todas las instancias
+        instances = list(pybikes.get_instances())
+        
+        # Buscar la instancia con el tag especificado
+        for class_name, instance_info in instances:
+            if instance_info.get('tag') == tag:
+                meta = instance_info.get('meta', {})
+                
+                # Crear un diccionario con los metadatos relevantes
+                result = {
+                    'tag': tag,
+                    'name': meta.get('name', ''),
+                    'city': meta.get('city', ''),
+                    'country': meta.get('country', '')
+                }
+                
+                return result
+        
+        # Si no se encuentra, devolver None
+        return None
+    except Exception:
+        return None
 
 
 def obtener_estaciones(tag: str) -> Optional[List]:
@@ -79,7 +130,17 @@ def obtener_estaciones(tag: str) -> Optional[List]:
     """
     # Implementa aquí la lógica para obtener y devolver
     # la lista de estaciones del sistema especificado
-    pass
+    try:
+        # Obtener el sistema de bicicletas
+        bike_system = pybikes.get(tag)
+        
+        # Actualizar la información de las estaciones
+        bike_system.update()
+        
+        # Devolver la lista de estaciones
+        return bike_system.stations
+    except Exception:
+        return None
 
 
 def crear_dataframe_estaciones(estaciones: List) -> pd.DataFrame:
@@ -95,7 +156,21 @@ def crear_dataframe_estaciones(estaciones: List) -> pd.DataFrame:
     # Implementa aquí la lógica para convertir la lista de estaciones
     # en un DataFrame de pandas con al menos las columnas:
     # nombre, latitud, longitud, bicicletas disponibles, espacios libres
-    pass
+    
+    # Crear una lista de diccionarios con los datos de cada estación
+    data = []
+    for station in estaciones:
+        data.append({
+            'name': station.name,
+            'latitude': station.latitude,
+            'longitude': station.longitude,
+            'bikes': station.bikes,
+            'free': station.free
+        })
+    
+    # Convertir la lista a un DataFrame
+    df = pd.DataFrame(data)
+    return df
 
 
 def visualizar_estaciones(df: pd.DataFrame) -> None:
@@ -107,7 +182,20 @@ def visualizar_estaciones(df: pd.DataFrame) -> None:
     """
     # Implementa aquí la lógica para crear un gráfico de barras que muestre
     # las 10 estaciones con más bicicletas disponibles
-    pass
+    
+    # Ordenar por número de bicicletas disponibles y tomar las 10 primeras
+    top_10 = df.nlargest(10, 'bikes')
+    
+    # Crear el gráfico de barras
+    plt.figure(figsize=(12, 6))
+    plt.barh(top_10['name'], top_10['bikes'])
+    plt.xlabel('Bicicletas disponibles')
+    plt.ylabel('Estación')
+    plt.title('Top 10 estaciones con más bicicletas disponibles')
+    plt.tight_layout()
+    
+    # Mostrar el gráfico
+    plt.show()
 
 
 if __name__ == "__main__":

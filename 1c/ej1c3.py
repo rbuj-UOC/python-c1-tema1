@@ -34,7 +34,9 @@ class StationStatus(enum.Enum):
     """
     # Define aquí los estados posibles (IN_SERVICE, MAINTENANCE, etc.)
     # según la documentación de la API
-    pass
+    IN_SERVICE = "IN_SERVICE"
+    MAINTENANCE = "MAINTENANCE"
+    OUT_OF_SERVICE = "OUT_OF_SERVICE"
 
 
 @dataclass
@@ -43,7 +45,8 @@ class VehicleType:
     Clase que representa un tipo de vehículo y su cantidad disponible.
     """
     # Añade aquí los atributos necesarios: tipo de vehículo (vehicle_type_id) y cantidad (count)
-    pass
+    vehicle_type_id: str
+    count: int
 
 
 class StationStatusInfo:
@@ -72,7 +75,30 @@ class StationStatusInfo:
         """
         # Implementa aquí la inicialización de todos los atributos
         # a partir del diccionario station_data
-        pass
+        self.station_id = station_data.get('station_id')
+        
+        # Convertir el estado de string a enum
+        status_str = station_data.get('status', 'IN_SERVICE')
+        try:
+            self.status = StationStatus(status_str)
+        except ValueError:
+            self.status = StationStatus.IN_SERVICE
+        
+        self.num_bikes_available = station_data.get('num_bikes_available', 0)
+        self.num_bikes_disabled = station_data.get('num_bikes_disabled', 0)
+        self.num_docks_available = station_data.get('num_docks_available', 0)
+        self.is_renting = station_data.get('is_renting', False)
+        self.is_returning = station_data.get('is_returning', False)
+        self.last_reported = station_data.get('last_reported')
+        
+        # Procesar la lista de tipos de vehículos disponibles
+        self.vehicle_types = []
+        vehicle_types_data = station_data.get('vehicle_types_available', [])
+        for vt_data in vehicle_types_data:
+            self.vehicle_types.append(VehicleType(
+                vehicle_type_id=vt_data.get('vehicle_type_id', ''),
+                count=vt_data.get('count', 0)
+            ))
     
     @property
     def is_operational(self) -> bool:
@@ -84,7 +110,11 @@ class StationStatusInfo:
             bool: True si la estación está operativa, False en caso contrario
         """
         # Implementa aquí la lógica para determinar si la estación está operativa
-        pass
+        return (
+            self.status == StationStatus.IN_SERVICE and
+            self.is_renting and
+            self.is_returning
+        )
     
     def get_available_bikes_by_type(self) -> Dict[str, int]:
         """
@@ -96,7 +126,10 @@ class StationStatusInfo:
         """
         # Implementa aquí la lógica para devolver un diccionario
         # con la cantidad de bicicletas disponibles por tipo
-        pass
+        result = {}
+        for vehicle_type in self.vehicle_types:
+            result[vehicle_type.vehicle_type_id] = vehicle_type.count
+        return result
     
     def __str__(self) -> str:
         """
@@ -107,7 +140,12 @@ class StationStatusInfo:
         """
         # Implementa aquí la lógica para devolver una representación en texto
         # de la estación y su estado actual
-        pass
+        return (
+            f"Estación {self.station_id}: "
+            f"{self.num_bikes_available} bicicletas disponibles, "
+            f"{self.num_docks_available} espacios libres "
+            f"[{self.status.value}]"
+        )
 
 
 class BarcelonaBikingClient:
@@ -137,7 +175,33 @@ class BarcelonaBikingClient:
         # 3. Crear objetos StationStatusInfo para cada estación en la respuesta
         # 4. Extraer el timestamp de last_updated de la respuesta
         # 5. Manejar posibles errores (conexión, formato, etc.)
-        pass
+        try:
+            # Realizar la petición GET
+            response = requests.get(self.station_status_url)
+            
+            # Verificar que la respuesta sea correcta
+            if response.status_code != 200:
+                return ([], None)
+            
+            # Obtener los datos JSON
+            json_data = response.json()
+            
+            # Extraer el timestamp de last_updated
+            last_updated = json_data.get('last_updated')
+            
+            # Obtener la lista de estaciones
+            stations_data = json_data.get('data', {}).get('stations', [])
+            
+            # Crear objetos StationStatusInfo para cada estación
+            stations = [StationStatusInfo(station_data) for station_data in stations_data]
+            
+            return (stations, last_updated)
+        except requests.exceptions.RequestException:
+            # Manejar errores de conexión
+            return ([], None)
+        except (ValueError, KeyError):
+            # Manejar errores de formato JSON
+            return ([], None)
     
     def find_station_by_id(self, station_id: str) -> Optional[StationStatusInfo]:
         """
@@ -151,7 +215,11 @@ class BarcelonaBikingClient:
                                          o None si no se encuentra
         """
         # Implementa aquí la lógica para buscar y devolver una estación por su ID
-        pass
+        stations, _ = self.get_stations_status()
+        for station in stations:
+            if station.station_id == station_id:
+                return station
+        return None
     
     def get_operational_stations(self) -> List[StationStatusInfo]:
         """
@@ -161,7 +229,8 @@ class BarcelonaBikingClient:
             List[StationStatusInfo]: Lista de estaciones operativas
         """
         # Implementa aquí la lógica para filtrar y devolver solo las estaciones operativas
-        pass
+        stations, _ = self.get_stations_status()
+        return [station for station in stations if station.is_operational]
     
     def get_stations_with_available_bikes(self, min_bikes: int = 1) -> List[StationStatusInfo]:
         """
@@ -175,7 +244,8 @@ class BarcelonaBikingClient:
         """
         # Implementa aquí la lógica para filtrar y devolver las estaciones
         # con al menos min_bikes disponibles
-        pass
+        stations, _ = self.get_stations_status()
+        return [station for station in stations if station.num_bikes_available >= min_bikes]
 
 
 if __name__ == "__main__":

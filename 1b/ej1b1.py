@@ -37,7 +37,24 @@ def get_nonexistent_resource():
     # 2. Capturar la excepción o error HTTP (no interrumpir la ejecución)
     # 3. Extraer la información solicitada del error
     # 4. Devolver un diccionario con la información del error
-    pass
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Esto lanzará un error para códigos 4xx/5xx
+        return None  # Si la petición es exitosa, no hay error que manejar
+    except requests.exceptions.HTTPError as http_err:
+        # Extraer información del error HTTP
+        return {
+            'status_code': response.status_code,
+            'error_message': str(http_err),
+            'requested_url': url
+        }
+    except Exception as err:
+        # Manejar cualquier otro error
+        return {
+            'status_code': None,
+            'error_message': str(err),
+            'requested_url': url
+        }
 
 if __name__ == "__main__":
     # Ejemplo de uso de la función
